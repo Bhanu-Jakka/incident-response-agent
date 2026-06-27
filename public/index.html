@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Response Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; color: #38bdf8; margin-bottom: 6px; font-size: 28px; }
+        p.subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; }
+        .input-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        textarea { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; font-size: 14px; resize: none; height: 80px; }
+        button { padding: 12px 24px; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        button:hover { background: #7dd3fc; }
+        .quick-incidents { margin-bottom: 25px; }
+        .quick-incidents h3 { color: #94a3b8; font-size: 13px; margin-bottom: 10px; }
+        .quick-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .quick-btn { padding: 6px 14px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 20px; cursor: pointer; font-size: 12px; }
+        .quick-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+        .memory-alert { background: #f59e0b22; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .memory-alert .icon { font-size: 20px; }
+        .memory-alert .text { color: #f59e0b; font-size: 14px; font-weight: bold; }
+        .memory-alert .sub { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+        .no-memory-alert { background: #33415522; border: 1px solid #475569; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; }
+        .no-memory-alert .text { color: #94a3b8; font-size: 13px; }
+        .response-box { background: #1e293b; border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #334155; }
+        .response-box h3 { color: #38bdf8; margin-bottom: 10px; }
+        .response-box p { color: #cbd5e1; line-height: 1.6; white-space: pre-wrap; }
+        .history-box { background: #1e293b; border-radius: 8px; padding: 20px; border: 1px solid #334155; }
+        .history-box h3 { color: #f59e0b; margin-bottom: 15px; }
+        .history-item { border-bottom: 1px solid #334155; padding: 10px 0; }
+        .history-item:last-child { border-bottom: none; }
+        .history-item .problem { color: #f87171; font-size: 13px; font-weight: bold; }
+        .history-item .fix { color: #86efac; font-size: 13px; margin-top: 5px; }
+        .loading { color: #94a3b8; font-style: italic; text-align: center; padding: 20px; }
+        .stats { display: flex; gap: 15px; margin-bottom: 25px; }
+        .stat { background: #1e293b; border-radius: 8px; padding: 15px 20px; flex: 1; border: 1px solid #334155; text-align: center; }
+        .stat .number { color: #38bdf8; font-size: 24px; font-weight: bold; }
+        .stat .label { color: #94a3b8; font-size: 12px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Incident Response Agent</h1>
+        <p class="subtitle">Powered by Hindsight memory — gets smarter with every incident</p>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="number" id="totalIncidents">0</div>
+                <div class="label">Incidents Resolved</div>
+            </div>
+            <div class="stat">
+                <div class="number" id="memoryHits">0</div>
+                <div class="label">Memory Recalls</div>
+            </div>
+            <div class="stat">
+                <div class="number" id="timeSaved">0m</div>
+                <div class="label">Est. Time Saved</div>
+            </div>
+        </div>
+
+        <div class="quick-incidents">
+            <h3>⚡ QUICK TEST INCIDENTS:</h3>
+            <div class="quick-buttons">
+                <button class="quick-btn" onclick="fillIncident('Database connection is timing out on production server')">DB Timeout</button>
+                <button class="quick-btn" onclick="fillIncident('API gateway returning 502 bad gateway errors')">502 Error</button>
+                <button class="quick-btn" onclick="fillIncident('Memory usage at 95% on web server, app is slow')">High Memory</button>
+                <button class="quick-btn" onclick="fillIncident('SSL certificate expired, users seeing security warning')">SSL Expired</button>
+                <button class="quick-btn" onclick="fillIncident('Deployment pipeline failed, build stuck at 60%')">Pipeline Failed</button>
+                <button class="quick-btn" onclick="fillIncident('Redis cache is down, response times are very slow')">Redis Down</button>
+            </div>
+        </div>
+
+        <div class="input-box">
+            <textarea id="incidentInput" placeholder="Describe your incident here..."></textarea>
+            <button onclick="submitIncident()">Analyze</button>
+        </div>
+
+        <div id="memoryStatus"></div>
+        <div id="responseArea"></div>
+
+        <div class="history-box" id="historyBox" style="display:none">
+            <h3>📚 Hindsight Memory Bank</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        let totalIncidents = 0;
+        let memoryHits = 0;
+        const allIncidents = [];
+
+        function fillIncident(text) {
+            document.getElementById('incidentInput').value = text;
+        }
+
+        async function submitIncident() {
+            const incident = document.getElementById('incidentInput').value.trim();
+            if (!incident) return;
+
+            document.getElementById('memoryStatus').innerHTML = '';
+            document.getElementById('responseArea').innerHTML = '<p class="loading">🔍 Searching Hindsight memory and analyzing incident...</p>';
+
+            const res = await fetch('/api/incident', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ incident })
+            });
+
+            const data = await res.json();
+
+            totalIncidents++;
+            document.getElementById('totalIncidents').textContent = totalIncidents;
+
+            // Show memory status
+            const similarCount = data.similarIncidents?.results?.length || 0;
+            if (similarCount > 0) {
+                memoryHits++;
+                document.getElementById('memoryHits').textContent = memoryHits;
+                document.getElementById('timeSaved').textContent = (memoryHits * 15) + 'm';
+                document.getElementById('memoryStatus').innerHTML = `
+                    <div class="memory-alert">
+                        <div class="icon">🧠</div>
+                        <div>
+                            <div class="text">Hindsight recalled ${similarCount} similar past incident(s)!</div>
+                            <div class="sub">Response informed by institutional memory</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('memoryStatus').innerHTML = `
+                    <div class="no-memory-alert">
+                        <div class="text">🆕 No similar incidents in memory — this response will be saved for future reference</div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('responseArea').innerHTML = `
+                <div class="response-box">
+                    <h3>🤖 Agent Response</h3>
+                    <p>${data.resolution}</p>
+                </div>
+            `;
+
+            allIncidents.unshift({ incident, resolution: data.resolution });
+            document.getElementById('incidentInput').value = '';
+            updateHistory();
+        }
+
+        function updateHistory() {
+            const historyBox = document.getElementById('historyBox');
+            const historyList = document.getElementById('historyList');
+            historyBox.style.display = 'block';
+            historyList.innerHTML = allIncidents.map(i => `
+                <div class="history-item">
+                    <div class="problem">🔴 ${i.incident}</div>
+                    <div class="fix">✅ ${i.resolution.substring(0, 200)}...</div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
